@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Undangan Pernikahan Digital</title>
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root { --primary: #d4af37; --dark: #333; --danger: #e74c3c; --success: #2ecc71; }
+        body { font-family: 'Poppins', sans-serif; margin: 0; background: #eef2f3; }
+        .admin-container { max-width: 800px; margin: 40px auto; padding: 20px; }
+        .header-admin { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .card-list { display: grid; gap: 15px; }
+        .card-item { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+        .card-info { display: flex; align-items: center; gap: 15px; }
+        .card-thumb { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: white; padding: 25px; border-radius: 10px; width: 90%; max-width: 450px; max-height: 90vh; overflow-y: auto; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        .preview-img-box { width: 100px; height: 100px; border-radius: 50%; overflow: hidden; margin: 0 auto 10px; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; background: #f9f9f9; }
+        .preview-img-box img { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* Guest View */
+        #guest-view { display: none; }
+        .mobile-container { max-width: 480px; margin: 0 auto; background: white; min-height: 100vh; box-shadow: 0 0 20px rgba(0,0,0,0.1); position: relative; }
+        .guest-header { background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://images.unsplash.com/photo-1519741497674-611481863552?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80'); background-size: cover; height: 350px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
+        .couple-photo-container { width: 150px; height: 150px; border-radius: 50%; border: 4px solid var(--primary); overflow: hidden; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); background: white; }
+        .couple-photo-container img { width: 100%; height: 100%; object-fit: cover; }
+        .guest-header h1 { font-family: 'Great Vibes', cursive; font-size: 3rem; color: var(--primary); margin: 10px 0; }
+        .guest-content { padding: 20px; text-align: center; }
+        .guest-box { background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #eee; }
+        .maps-frame { width: 100%; height: 180px; border: 0; border-radius: 5px; margin-top: 10px; }
+        .btn-full { width: 100%; display: block; margin: 10px 0; padding: 12px; border-radius: 50px; text-decoration: none; font-weight: bold; box-sizing: border-box; text-align: center; }
+        .wa-btn { background: #25D366; color: white; }
+        .back-btn { position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.5); color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; z-index: 10; }
+        #qrcode { display: flex; justify-content: center; margin: 15px 0; }
+        .loading { text-align: center; padding: 50px; color: #666; }
+        .status-badge { padding: 3px 8px; border-radius: 3px; font-size: 0.7rem; }
+        .status-hadir { background: #d4edda; color: #155724; }
+        .status-tidak { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+
+    <!-- ADMIN DASHBOARD -->
+    <div id="admin-panel" class="admin-container">
+        <div class="header-admin">
+            <h2>📂 Dashboard Undangan</h2>
+            <button onclick="openModal()" class="btn btn-primary">+ Buat Undangan Baru</button>
+        </div>
+        <div id="loading-list" class="loading">Memuat data dari Firebase...</div>
+        <div id="invitation-list" class="card-list"></div>
+    </div>
+
+    <!-- GUEST VIEW -->
+    <div id="guest-view">
+        <div class="mobile-container">
+            <button onclick="closeGuestView()" class="back-btn">⬅ Kembali</button>
+            <div class="guest-header">
+                <p id="view-header-text">The Wedding Of</p>
+                <div class="couple-photo-container">
+                    <img id="view-photo" src="" alt="Foto">
+                </div>
+                <h1 id="view-couple">Romeo & Juliet</h1>
+                <p id="view-date">Sabtu, 25 Desember 2024</p>
+            </div>
+            <div class="guest-content">
+                <div class="guest-box">
+                    <h3>📍 Lokasi</h3>
+                    <p id="view-location">Gedung Indah, Jakarta</p>
+                    <iframe id="view-maps" class="maps-frame" src="" allowfullscreen loading="lazy"></iframe>
+                    <a id="view-maps-link" href="#" target="_blank" class="btn-full" style="background:#333;color:white;margin-top:10px;font-size:0.8rem;">Buka Google Maps</a>
+                </div>
+                <div class="guest-box">
+                    <h3>🎫 QR Code</h3>
+                    <div id="qrcode"></div>
+                </div>
+                <div class="guest-box">
+                    <h3>✅ Konfirmasi Kehadiran</h3>
+                    <input type="text" id="rsvp-name" placeholder="Nama Anda" style="width:100%;padding:8px;margin-bottom:5px;border:1px solid #ccc;border-radius:4px;">
+                    <select id="rsvp-status" style="width:100%;padding:8px;margin-bottom:10px;border:1px solid #ccc;border-radius:4px;">
+                        <option value="Hadir">Saya Akan Hadir</option>
+                        <option value="Tidak Hadir">Maaf, Tidak Bisa</option>
+                    </select>
+                    <button onclick="submitRSVP()" class="btn-full btn-primary">Kirim Konfirmasi</button>
+                </div>
+                <button onclick="shareWA()" class="btn-full wa-btn">📱 Share via WhatsApp</button>
+                
+                <!-- RSVP List untuk Admin -->
+                <div class="guest-box" id="rsvp-list-box" style="display:none;">
+                    <h3>📋 Daftar Tamu (Admin Only)</h3>
+                    <div id="rsvp-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL FORM -->
+    <div id="form-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="modal-title">Buat Undangan</h3>
+            <input type="hidden" id="edit-id">
+            <div class="form-group">
+                <label>Background Header</label>
+                <div class="preview-img-box" id="preview-bg-box"><span>Preview</span></div>
+                <input type="file" id="input-bg" accept="image/*" onchange="handleBgSelect(this)">
+            </div>
+            <div class="form-group">
+                <label>Teks Header</label>
+                <input type="text" id="input-header-text" placeholder="The Wedding Of">
+            </div>
+            <div class="form-group">
+                <label>Foto Mempelai</label>
+                <div class="preview-img-box" id="preview-photo-box"><span>Preview</span></div>
+                <input type="file" id="input-photo" accept="image/*" onchange="handlePhotoSelect(this)">
+            </div>
+            <div class="form-group"><label>Nama Mempelai</label><input type="text" id="input-couple"></div>
+            <div class="form-group"><label>Tanggal</label><input type="text" id="input-date"></div>
+            <div class="form-group"><label>Lokasi</label><input type="text" id="input-location"></div>
+            <div class="form-group"><label>Maps Embed</label><input type="text" id="input-maps-embed"></div>
+            <div class="form-group"><label>Maps Link</label><input type="text" id="input-maps-link"></div>
+            <div style="display:flex;gap:10px;margin-top:20px;">
+                <button onclick="saveInvitation()" class="btn btn-primary" style="flex:1">Simpan</button>
+                <button onclick="closeModal()" class="btn btn-danger" style="flex:1">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIREBASE SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    
+    <script>
+        // ============================================
+        // ⚠️ GANTI DENGAN CONFIG FIREBASE ANDA DI SINI
+        // ============================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            authDomain: "your-project.firebaseapp.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456"
+        };
+        // ============================================
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let currentPhotoBase64 = null;
+        let currentBgBase64 = null;
+        let currentInvitationId = null;
+
+        // Load invitations from Firebase
+        function loadInvitations() {
+            document.getElementById('loading-list').style.display = 'block';
+            document.getElementById('invitation-list').innerHTML = '';
+            
+            db.collection('invitations').get().then((querySnapshot) => {
+                document.getElementById('loading-list').style.display = 'none';
+                const listContainer = document.getElementById('invitation-list');
+                
+                if (querySnapshot.empty) {
+                    listContainer.innerHTML = '<p style="text-align:center;color:#999;">Belum ada undangan.</p>';
+                    return;
+                }
+
+                querySnapshot.forEach((doc) => {
+                    const inv = doc.data();
+                    const photoSrc = inv.photo || 'https://via.placeholder.com/150?text=No+Photo';
+                    
+                    const card = document.createElement('div');
+                    card.className = 'card-item';
+                    card.innerHTML = `
+                        <div class="card-info">
+                            <img src="${photoSrc}" class="card-thumb">
+                            <div>
+                                <h3>${inv.couple}</h3>
+                                <p>📅 ${inv.date}</p>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button onclick="previewInvitation('${doc.id}')" class="btn btn-primary">Lihat</button>
+                            <button onclick="editInvitation('${doc.id}')" class="btn" style="background:#f39c12;color:white;">Edit</button>
+                            <button onclick="deleteInvitation('${doc.id}')" class="btn btn-danger">Hapus</button>
+                        </div>
+                    `;
+                    listContainer.appendChild(card);
+                });
+            }).catch((error) => {
+                console.error("Error loading invitations: ", error);
+                document.getElementById('loading-list').innerHTML = 'Error loading data. Check Firebase config!';
+            });
+        }
+
+        function openModal() {
+            document.getElementById('modal-title').innerText = "Buat Undangan Baru";
+            document.getElementById('edit-id').value = "";
+            document.getElementById('input-couple').value = "";
+            document.getElementById('input-header-text').value = "The Wedding Of";
+            document.getElementById('input-date').value = "";
+            document.getElementById('input-location').value = "";
+            document.getElementById('input-maps-embed').value = "";
+            document.getElementById('input-maps-link').value = "";
+            currentPhotoBase64 = null;
+            currentBgBase64 = null;
+            document.getElementById('input-photo').value = "";
+            document.getElementById('input-bg').value = "";
+            document.getElementById('preview-photo-box').innerHTML = '<span>Preview</span>';
+            document.getElementById('preview-bg-box').innerHTML = '<span>Preview</span>';
+            document.getElementById('form-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('form-modal').style.display = 'none';
+        }
+
+        function compressImage(file, callback) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const maxWidth = 600;
+                    const scaleSize = maxWidth / img.width;
+                    canvas.width = maxWidth;
+                    canvas.height = img.height * scaleSize;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    callback(canvas.toDataURL('image/jpeg', 0.6));
+                }
+                img.src = e.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
+
+        function handlePhotoSelect(input) {
+            const file = input.files[0];
+            if (!file) return;
+            compressImage(file, (base64) => {
+                currentPhotoBase64 = base64;
+                document.getElementById('preview-photo-box').innerHTML = `<img src="${base64}">`;
+            });
+        }
+
+        function handleBgSelect(input) {
+            const file = input.files[0];
+            if (!file) return;
+            compressImage(file, (base64) => {
+                currentBgBase64 = base64;
+                document.getElementById('preview-bg-box').innerHTML = `<img src="${base64}">`;
+            });
+        }
+
+        function saveInvitation() {
+            const id = document.getElementById('edit-id').value;
+            const data = {
+                couple: document.getElementById('input-couple').value,
+                headerText: document.getElementById('input-header-text').value,
+                date: document.getElementById('input-date').value,
+                location: document.getElementById('input-location').value,
+                mapsEmbed: document.getElementById('input-maps-embed').value,
+                mapsLink: document.getElementById('input-maps-link').value,
+                photo: currentPhotoBase64,
+                bg: currentBgBase64,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            if(!data.couple || !data.date) { alert("Nama dan Tanggal wajib diisi!"); return; }
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerText = "Menyimpan...";
+
+            if (id === "") {
+                db.collection('invitations').add(data).then(() => {
+                    alert("Undangan berhasil dibuat!");
+                    closeModal();
+                    loadInvitations();
+                }).catch((error) => {
+                    alert("Error: " + error.message);
+                }).finally(() => {
+                    btn.disabled = false;
+                    btn.innerText = "Simpan";
+                });
+            } else {
+                db.collection('invitations').doc(id).update(data).then(() => {
+                    alert("Undangan berhasil diupdate!");
+                    closeModal();
+                    loadInvitations();
+                }).catch((error) => {
+                    alert("Error: " + error.message);
+                }).finally(() => {
+                    btn.disabled = false;
+                    btn.innerText = "Simpan";
+                });
+            }
+        }
+
+        function editInvitation(id) {
+            db.collection('invitations').doc(id).get().then((doc) => {
+                if (doc.exists) {
+                    const inv = doc.data();
+                    document.getElementById('modal-title').innerText = "Edit Undangan";
+                    document.getElementById('edit-id').value = id;
+                    document.getElementById('input-couple').value = inv.couple;
+                    document.getElementById('input-header-text').value = inv.headerText || "";
+                    document.getElementById('input-date').value = inv.date;
+                    document.getElementById('input-location').value = inv.location;
+                    document.getElementById('input-maps-embed').value = inv.mapsEmbed || "";
+                    document.getElementById('input-maps-link').value = inv.mapsLink || "";
+                    currentPhotoBase64 = inv.photo;
+                    currentBgBase64 = inv.bg;
+                    if(inv.photo) document.getElementById('preview-photo-box').innerHTML = `<img src="${inv.photo}">`;
+                    if(inv.bg) document.getElementById('preview-bg-box').innerHTML = `<img src="${inv.bg}">`;
+                    document.getElementById('form-modal').style.display = 'flex';
+                }
+            });
+        }
+
+        function deleteInvitation(id) {
+            if(confirm("Yakin hapus undangan ini?")) {
+                db.collection('invitations').doc(id).delete().then(() => {
+                    alert("Undangan dihapus!");
+                    loadInvitations();
+                });
+            }
+        }
+
+        function previewInvitation(id) {
+            currentInvitationId = id;
+            db.collection('invitations').doc(id).get().then((doc) => {
+                if (doc.exists) {
+                    const inv = doc.data();
+                    const headerEl = document.getElementById('dynamic-header') || document.querySelector('.guest-header');
+                    
+                    if (inv.bg) {
+                        headerEl.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('${inv.bg}')`;
+                    }
+                    
+                    const textEl = document.getElementById('view-header-text');
+                    if (inv.headerText && inv.headerText.trim() !== "") {
+                        textEl.innerText = inv.headerText;
+                        textEl.style.display = 'block';
+                    } else {
+                        textEl.style.display = 'none';
+                    }
+
+                    document.getElementById('view-couple').innerText = inv.couple;
+                    document.getElementById('view-date').innerText = inv.date;
+                    document.getElementById('view-location').innerText = inv.location || "Lokasi akan diumumkan";
+                    document.getElementById('view-photo').src = inv.photo || 'https://via.placeholder.com/150?text=No+Photo';
+                    
+                    const iframe = document.getElementById('view-maps');
+                    if(inv.mapsEmbed) {
+                        iframe.src = inv.mapsEmbed;
+                        iframe.style.display = 'block';
+                    } else {
+                        iframe.style.display = 'none';
+                    }
+                    document.getElementById('view-maps-link').href = inv.mapsLink || "#";
+
+                    document.getElementById('qrcode').innerHTML = "";
+                    new QRCode(document.getElementById("qrcode"), {
+                        text: window.location.href + "?id=" + id,
+                        width: 120, height: 120
+                    });
+
+                    // Load RSVP data
+                    loadRSVP(id);
+
+                    document.getElementById('admin-panel').style.display = 'none';
+                    document.getElementById('guest-view').style.display = 'block';
+                    window.scrollTo(0,0);
+                }
+            });
+        }
+
+        function loadRSVP(invitationId) {
+            const rsvpList = document.getElementById('rsvp-list');
+            const rsvpBox = document.getElementById('rsvp-list-box');
+            rsvpList.innerHTML = '<p>Memuat...</p>';
+            rsvpBox.style.display = 'block';
+
+            db.collection('invitations').doc(invitationId).collection('rsvp').orderBy('createdAt', 'desc').get().then((querySnapshot) => {
+                rsvpList.innerHTML = '';
+                if (querySnapshot.empty) {
+                    rsvpList.innerHTML = '<p style="color:#999;">Belum ada konfirmasi</p>';
+                    return;
+                }
+                querySnapshot.forEach((doc) => {
+                    const rsvp = doc.data();
+                    const statusClass = rsvp.status === 'Hadir' ? 'status-hadir' : 'status-tidak';
+                    const item = document.createElement('div');
+                    item.style.cssText = 'padding:10px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;';
+                    item.innerHTML = `
+                        <span>${rsvp.name}</span>
+                        <span class="status-badge ${statusClass}">${rsvp.status}</span>
+                    `;
+                    rsvpList.appendChild(item);
+                });
+            });
+        }
+
+        function closeGuestView() {
+            document.getElementById('guest-view').style.display = 'none';
+            document.getElementById('admin-panel').style.display = 'block';
+            loadInvitations();
+        }
+
+        function submitRSVP() {
+            const name = document.getElementById('rsvp-name').value;
+            const status = document.getElementById('rsvp-status').value;
+            if(!name) { alert("Isi nama dulu!"); return; }
+
+            db.collection('invitations').doc(currentInvitationId).collection('rsvp').add({
+                name: name,
+                status: status,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(() => {
+                alert(`Terima kasih ${name}, konfirmasi "${status}" berhasil dikirim!`);
+                document.getElementById('rsvp-name').value = "";
+                loadRSVP(currentInvitationId);
+            }).catch((error) => {
+                alert("Error: " + error.message);
+            });
+        }
+
+        function shareWA() {
+            const url = window.location.href + "?id=" + currentInvitationId;
+            const text = `Halo, silakan cek undangan pernikahan di sini: ${url}`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        }
+
+        // Check URL for invitation ID (guest access)
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const invId = urlParams.get('id');
+            
+            if (invId) {
+                // Guest view directly
+                previewInvitation(invId);
+            } else {
+                // Admin view
+                loadInvitations();
+            }
+        };
+    </script>
+</body>
+</html>
